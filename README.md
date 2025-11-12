@@ -1,1 +1,1 @@
-# -Inhibition
+# Percent Inhibition
