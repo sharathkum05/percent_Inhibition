@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Generated outputs
+*.csv
+*.xlsx
+~$*.xlsx
+
+# Streamlit cache
+.streamlit/
+.cache/
+
