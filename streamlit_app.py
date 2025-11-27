@@ -246,10 +246,11 @@ uploaded_files = st.file_uploader(
 )
 
 # Layout selector - always visible
+default_layout = getattr(pi, 'LAYOUT', 'horizontal')
 layout = st.selectbox(
     "Export layout order",
     options=["horizontal", "vertical"],
-    index=0 if pi.LAYOUT == "horizontal" else 1,
+    index=0 if default_layout == "horizontal" else 1,
     help=(
         "Horizontal (row-major): B2, B3, B4, ..., B23, C2, C3, ... "
         "(all columns for row B, then all columns for row C, etc.). "
