@@ -20,7 +20,7 @@ import os
 import re
 import glob
 from string import ascii_uppercase
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Iterable
 
 import numpy as np
 import pandas as pd
@@ -32,6 +32,7 @@ POS_CONTROL_SPANS = ["I02-O02"]             # 100% inhibition reference
 EXCLUDE_PERIMETER = True                    # remove rows A/P and cols 1/24 globally
 CLIP_PERCENT = False                        # clip %Inhibition to [0, 100]
 INPUT_GLOB = "*.xlsx"                       # which files to process
+LAYOUT = "horizontal"                       # "horizontal" (row-major) or "vertical" (column-major) export order
 # ---------------------------------------------
 
 
@@ -66,14 +67,56 @@ def find_plate_block(df: pd.DataFrame) -> pd.DataFrame:
     return block
 
 
-def melt_plate_block(block: pd.DataFrame, plate_name: str) -> pd.DataFrame:
-    """Convert matrix to tidy long dataframe with (Plate, Well, Signal)."""
+def generate_well_labels(rows, columns, layout: str = "horizontal") -> List[Tuple[str, int]]:
+    """
+    Generate well coordinates (row, column) in the specified layout order.
+    
+    Args:
+        rows: Iterable of row labels (e.g., ['A', 'B', 'C', ...])
+        columns: Iterable of column numbers (e.g., [1, 2, 3, ...])
+        layout: "horizontal" (row-major: B2, B3, B4, ..., B23, C2, C3, ...) 
+                or "vertical" (column-major: B2, C2, D2, ..., O2, B3, C3, ...)
+    
+    Returns:
+        List of (row, column) tuples in the specified order.
+    """
     recs = []
-    for r in block.index:
-        for c in block.columns:
-            well = f"{r}{c:02d}"
-            val = block.loc[r, c]
-            recs.append((plate_name, well, float(val) if pd.notna(val) else np.nan))
+    if layout == "horizontal":
+        # Row-major: iterate rows first, then columns
+        # Produces: B2, B3, B4, ..., B23, C2, C3, C4, ..., C23, ...
+        for r in rows:
+            for c in columns:
+                recs.append((r, c))
+    elif layout == "vertical":
+        # Column-major: iterate columns first, then rows
+        # Produces: B2, C2, D2, ..., O2, B3, C3, D3, ..., O3, ...
+        for c in columns:
+            for r in rows:
+                recs.append((r, c))
+    else:
+        raise ValueError(f"Invalid layout: {layout}. Must be 'horizontal' or 'vertical'.")
+    return recs
+
+
+def melt_plate_block(block: pd.DataFrame, plate_name: str, layout: str = "horizontal") -> pd.DataFrame:
+    """
+    Convert matrix to tidy long dataframe with (Plate, Well, Signal).
+    
+    Args:
+        block: DataFrame with rows A..P and columns 1..24
+        plate_name: Name identifier for this plate
+        layout: "horizontal" (row-major: B2, B3, B4, ...) or "vertical" (column-major: B2, C2, D2, ...) iteration order.
+                Default "horizontal" preserves existing behavior.
+    
+    Returns:
+        DataFrame with columns: Plate, Well, Signal
+    """
+    recs = []
+    well_coords = generate_well_labels(block.index, block.columns, layout=layout)
+    for r, c in well_coords:
+        well = f"{r}{c:02d}"
+        val = block.loc[r, c]
+        recs.append((plate_name, well, float(val) if pd.notna(val) else np.nan))
     return pd.DataFrame(recs, columns=["Plate", "Well", "Signal"])
 
 
@@ -158,7 +201,7 @@ def main():
             block = find_plate_block(df)
 
             # Melt and optionally remove perimeter wells
-            tidy = melt_plate_block(block, plate_name)
+            tidy = melt_plate_block(block, plate_name, layout=LAYOUT)
             if EXCLUDE_PERIMETER:
                 before_n = len(tidy)
                 tidy = filter_perimeter_wells(tidy)
