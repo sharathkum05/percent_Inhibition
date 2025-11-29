@@ -22,7 +22,7 @@ st.set_page_config(
 
 st.title("% Inhibition Calculator")
 st.write(
-    "Upload one or more 384-well plate Excel files (single block A–P × 1–24). "
+    "**Upload single or multiple 384-well plate Excel Files.** "
     "The app will compute % inhibition using your configured controls, generate "
     "plate QC metrics (including Z'), and provide downloadable CSV outputs."
 )
