@@ -98,7 +98,7 @@ def reorder_by_layout(df: pd.DataFrame, layout: str, well_col: str = "Well") -> 
 
 
 def process_uploaded_files(
-    uploaded_files: List[Any],
+    uploaded_files: Any,
     exclude_perimeter: bool,
     clip_percent: bool,
     neg_spans: List[str],
@@ -127,14 +127,38 @@ def process_uploaded_files(
     qc_rows: List[Dict[str, Any]] = []
     log_messages: List[str] = []
 
-    for uploaded in uploaded_files:
-        plate_name = uploaded.name.rsplit(".", 1)[0]
-        if uploaded.name.startswith("~$"):
-            warnings.append(f"{uploaded.name}: skipped temporary Excel lock file.")
-            continue
+    # Handle both single file and multiple files
+    if uploaded_files is None or len(uploaded_files) == 0:
+        raise ValueError("No files uploaded.")
+    
+    # Ensure it's a list
+    if not isinstance(uploaded_files, list):
+        uploaded_files = [uploaded_files]
 
+    for uploaded in uploaded_files:
+        # Skip if file is None
+        if uploaded is None:
+            continue
+        
+        # Get file name safely - handle both file objects and bytes
         try:
-            uploaded.seek(0)
+            if hasattr(uploaded, 'name') and uploaded.name:
+                plate_name = uploaded.name.rsplit(".", 1)[0]
+                if uploaded.name.startswith("~$"):
+                    warnings.append(f"{uploaded.name}: skipped temporary Excel lock file.")
+                    continue
+            else:
+                # Fallback if name attribute doesn't exist
+                plate_name = f"plate_{len(all_rows) + 1}"
+        except (AttributeError, TypeError):
+            plate_name = f"plate_{len(all_rows) + 1}"
+        
+        try:
+            # Reset file pointer if it's a file-like object
+            if hasattr(uploaded, 'seek'):
+                uploaded.seek(0)
+            
+            # Read Excel file
             df = pd.read_excel(uploaded, header=None)
             block = pi.find_plate_block(df)
 
@@ -299,8 +323,10 @@ if uploaded_files:
     if st.button("Run analysis", type="primary"):
         with st.spinner("Processing plates..."):
             try:
+                # Ensure uploaded_files is always a list
+                files_list = uploaded_files if isinstance(uploaded_files, list) else [uploaded_files]
                 outputs, logs, warnings = process_uploaded_files(
-                    uploaded_files=uploaded_files,
+                    uploaded_files=files_list,
                     exclude_perimeter=exclude_perimeter,
                     clip_percent=clip_percent,
                     neg_spans=parse_spans(neg_span_text),
