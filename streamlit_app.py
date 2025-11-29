@@ -15,12 +15,14 @@ import percent_inhibition as pi
 
 
 st.set_page_config(
-    page_title="Percent Inhibition Calculator",
+    page_title="ITR - % Inhibition Calculator",
     page_icon="🧪",
     layout="wide",
 )
 
-st.title("% Inhibition Calculator")
+# Main panel header
+st.title("🧪 ITR - % Inhibition Calculator")
+st.caption("Developed by: Sharath Kumar for ITR-UIC")
 st.write(
     "**Upload single or multiple 384-well plate Excel Files.** "
     "The app will compute % inhibition using your configured controls, generate "
@@ -238,45 +240,59 @@ def process_uploaded_files(
     return outputs, log_messages, warnings
 
 
+# Sidebar configuration
+with st.sidebar:
+    st.header("Input Options")
+    input_mode = st.radio(
+        "Select input mode:",
+        options=["Single file", "Batch processing"],
+        index=0,
+    )
+    
+    st.divider()
+    
+    st.header("Export Layout")
+    default_layout = getattr(pi, 'LAYOUT', 'horizontal')
+    layout = st.selectbox(
+        "Export layout order",
+        options=["horizontal", "vertical"],
+        index=0 if default_layout == "horizontal" else 1,
+        help=(
+            "Horizontal (row-major): B2, B3, B4, ..., B23, C2, C3, ... "
+            "(all columns for row B, then all columns for row C, etc.). "
+            "Vertical (column-major): B2, C2, D2, ..., O2, B3, C3, ... "
+            "(all rows for column 2, then all rows for column 3, etc.)."
+        ),
+    )
+    
+    st.divider()
+    
+    st.header("Processing Options")
+    exclude_perimeter = st.checkbox(
+        "Exclude perimeter wells (rows A/P and columns 1/24)",
+        value=pi.EXCLUDE_PERIMETER,
+    )
+    clip_percent = st.checkbox(
+        "Clip % inhibition to [0, 100]",
+        value=pi.CLIP_PERCENT,
+    )
+    neg_span_text = st.text_input(
+        "Negative control spans",
+        ", ".join(pi.NEG_CONTROL_SPANS),
+        help="Comma-separated spans like B02-H02 (inclusive).",
+    )
+    pos_span_text = st.text_input(
+        "Positive control spans",
+        ", ".join(pi.POS_CONTROL_SPANS),
+        help="Comma-separated spans like I02-O02 (inclusive).",
+    )
+
+# Main panel - File upload
 uploaded_files = st.file_uploader(
     "Upload Excel files",
     type=["xlsx"],
-    accept_multiple_files=True,
+    accept_multiple_files=(input_mode == "Batch processing"),
     help="Select one or more .xlsx files containing a single 384-well block (A–P × 1–24).",
-)
-
-# Layout selector - always visible
-default_layout = getattr(pi, 'LAYOUT', 'horizontal')
-layout = st.selectbox(
-    "Export layout order",
-    options=["horizontal", "vertical"],
-    index=0 if default_layout == "horizontal" else 1,
-    help=(
-        "Horizontal (row-major): B2, B3, B4, ..., B23, C2, C3, ... "
-        "(all columns for row B, then all columns for row C, etc.). "
-        "Vertical (column-major): B2, C2, D2, ..., O2, B3, C3, ... "
-        "(all rows for column 2, then all rows for column 3, etc.)."
-    ),
-)
-
-st.subheader("Processing options")
-exclude_perimeter = st.checkbox(
-    "Exclude perimeter wells (rows A/P and columns 1/24)",
-    value=pi.EXCLUDE_PERIMETER,
-)
-clip_percent = st.checkbox(
-    "Clip % inhibition to [0, 100]",
-    value=pi.CLIP_PERCENT,
-)
-neg_span_text = st.text_input(
-    "Negative control spans",
-    ", ".join(pi.NEG_CONTROL_SPANS),
-    help="Comma-separated spans like B02-H02 (inclusive).",
-)
-pos_span_text = st.text_input(
-    "Positive control spans",
-    ", ".join(pi.POS_CONTROL_SPANS),
-    help="Comma-separated spans like I02-O02 (inclusive).",
 )
 
 if uploaded_files:
